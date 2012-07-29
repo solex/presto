@@ -1,0 +1,93 @@
+{
+    "providers": [
+        {
+            "access_token_method": "POST",
+            "access_token_url": "https://www.odesk.com/api/auth/v1/oauth/token/access",
+            "apps": [
+                {
+                    "name": "default",
+                    "public_key": "a5f4b5816316ebe937a9e65c1ca83818",
+                    "secret_key": "c27fe3645196e126",
+                    "tokens": [
+                        {
+                            "name": "default1",
+                            "token": "1856cfc95249178fa964903096887f32"
+                        },
+                        {
+                            "name": "default",
+                            "token_key": "1856cfc95249178fa964903096887f32",
+                            "token_secret": "5a5285f645be129f"
+                        },
+                        {
+                            "name": "test",
+                            "token_key": "1856cfc95249178fa964903096887f32",
+                            "token_secret": "5a5285f645be129f"
+                        }
+                    ]
+                },
+                {
+                    "name": "test2",
+                    "public_key": "wegergerhrtj",
+                    "secret_key": "qwqwqwqw"
+                },
+                {
+                    "name": "oeee",
+                    "public_key": "ww",
+                    "secret_key": "ww"
+                },
+                {
+                    "name": "oeee",
+                    "public_key": "ww",
+                    "secret_key": "ww"
+                },
+                {
+                    "name": "oeee",
+                    "public_key": "ww",
+                    "secret_key": "ww"
+                },
+                {
+                    "name": "oee",
+                    "public_key": "ww",
+                    "secret_key": "ww"
+                }
+            ],
+            "auth_type": "OAuth1.0",
+            "auth_url": "https://www.odesk.com/services/api/auth",
+            "domain_name": "www.odesk.com",
+            "name": "oDesk",
+            "request_token_method": "POST",
+            "request_token_url": "http://www.odesk.com/api/auth/v1/oauth/token/request"
+        },
+        {
+            "apps": [
+                {
+                    "name": "test3",
+                    "public key": "wegergerhrtj",
+                    "secret key": "qwqwqwqw"
+                },
+                {
+                    "name": "test4",
+                    "public key": "wegergerhrtj",
+                    "secret key": "qwqwqwqw"
+                },
+                {
+                    "name": "oeee",
+                    "public_key": "ww",
+                    "secret_key": "ww"
+                }
+            ],
+            "domain_name": "http://odesk.com/",
+            "name": "Twitter"
+        },
+        {
+            "access_token_method": "POST",
+            "access_token_url": "rrr",
+            "auth_type": "OAuth1.0",
+            "auth_url": "rrr",
+            "domain_name": "ttt",
+            "name": "rrr",
+            "request_token_method": "POST",
+            "request_token_url": "eee"
+        }
+    ]
+}
