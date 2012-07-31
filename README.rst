@@ -1,10 +1,13 @@
 ============
-Presto
+pRESTo
 ============
 
-Presto - command line Rest Api client
+pRESTo - command line Rest Api client
 
 Requirements
 ============
 
     * `docopt`
+    * `oauthlib`
+    * `json_tools`
+

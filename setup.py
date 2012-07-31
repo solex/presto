@@ -1,14 +1,18 @@
 from setuptools import setup, find_packages
+from presto import version
 
-version = __import__('presto').get_version()
+ver = version.get_version()
 
 setup(name='pRESTo',
-      version=version,
+      version=ver,
       description='Command line Rest Api client',
       long_description='',
       author='Nikolay Melnik',
       author_email='nmelnik@odeskps.com',
       packages = find_packages(exclude=['tests']),
+      package_data = { 
+                   'presto': [ 'presto.cfg'],
+                   },
       install_requires = ['docopt', 'json_tools', 'oauthlib', ],
       classifiers=['Development Status :: 1 - Alpha',
                    'Environment :: Web Environment',
@@ -18,6 +22,6 @@ setup(name='pRESTo',
                    'Programming Language :: Python',
                    'Topic :: Software Development :: Libraries :: Python Modules',
                    'Topic :: Utilities'],
-    scripts = ['presto-cfg.py',
-               'presto-url.py']
+     scripts = ['presto-cfg.py',
+                'presto-url.py']
 )

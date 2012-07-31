@@ -41,20 +41,22 @@ from oauthlib.oauth1.rfc5849 import *
 from urlparse import urlparse
 import httplib2
 import simplejson as json
+from  json_tools.printer import print_json
 
 
 from presto.config_utils import PrestoCfg, PrestoCfgException
-from  json_tools.printer import print_json
+from presto import version
 
-version = __import__('presto').get_version()
+ver = version.get_version()
 
 if __name__ == '__main__':
-    args = docopt(__doc__, argv=sys.argv[1:], help=True, version=version)
-    #print(args)
+    args = docopt(__doc__, argv=sys.argv[1:], help=True, version=ver)
     url = unicode(args['<url>'])
     sch, net, path, par, query, fra = urlparse(url)
     
-    method = args['--request'] or u'GET'
+    method = unicode((args['--request'] or u'GET').upper())
+    data = args['-d']
+
     prestocfg = PrestoCfg()
     try:
         if args['-a']:
@@ -80,9 +82,11 @@ if __name__ == '__main__':
             resource_owner_secret=access_token_secret,
             signature_type=SIGNATURE_TYPE_QUERY
     )
-    uri, headers, body =  client.sign(uri=url, http_method=method)
+    headers = {}
+    if data:
+        headers['Content-Type'] = u'application/x-www-form-urlencoded'
+    uri, headers, body =  client.sign(uri=url, http_method=method, headers=headers, body=data)
     http = httplib2.Http()
-    headers['Content-Type'] = u'application/x-www-form-urlencoded'
     response, content = httplib2.Http.request(http, uri, method=method, body=body,
             headers=headers)
 
@@ -104,9 +108,12 @@ if __name__ == '__main__':
         print response
 
     print "\nContent:"
-    if args['-c']:
-        print_json(json.loads(content), True)
-    elif args['-p']:
-        print_json(json.loads(content), False)
+    if response["content-type"] == "application/json":
+        if args['-c']:
+            print_json(json.loads(content), True)
+        elif args['-p']:
+            print_json(json.loads(content), False)
+        else:
+            print content
     else:
         print content
