@@ -3,3 +3,5 @@ coverage==3.5.1
 mock>=0.7.0b3
 -e git+https://github.com/idan/oauthlib.git#egg=oauthlib
 json_tools==0.1.30
+simplejson
+nose

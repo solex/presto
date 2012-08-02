@@ -12,6 +12,9 @@ import urllib
 class PrestoCfgException(Exception):
     pass
 
+class PrestoCfgAlreadyExist(PrestoCfgException):
+    pass
+
 class PrestoCfg(object):
     PRESTO_CONFIG_FILE_NAME =  os.path.join(os.getenv("HOME"), ".presto")
 
@@ -21,16 +24,19 @@ class PrestoCfg(object):
     def load(self, file_name):
         if os.path.exists(file_name):
             f = file(file_name, "r")
+            cfg = f.read()
+            f.close()
         else:
             f = file(file_name, "w+")
             f_template = open(os.path.join(os.path.dirname(__file__), 'presto.cfg'))
-            config_template = f_template.read()
+            cfg = f_template.read()
             f_template.close()
-            f.write(config_template)
-        cfg = f.read()
-        f.close()
+            f.write(cfg)
+            f.close()
         if cfg:
             self.cfg = json.loads(cfg)
+        else:
+            raise PrestoCfgException("Empty configuration file")
 
     def save(self):
         if self.cfg:
@@ -52,7 +58,7 @@ class PrestoCfg(object):
         if self.cfg.get('providers', []):
             for provider in self.cfg['providers']:
                 if provider['name'] == name:
-                    raise PrestoCfgException("Provider with name '%s' already exist on provider '%s'." % \
+                    raise PrestoCfgAlreadyExist("Provider with name '%s' already exist on provider '%s'." % \
                            (name, provider['name']))
 
     def validate_auth_type(self, type):
@@ -64,21 +70,24 @@ class PrestoCfg(object):
             raise PrestoCfgException("Invalid method. Choose in ('POST', 'GET').")
 
 
-    def provider_add(self, name=None, domain_name=None, auth_type=None, \
-                    request_token_url=None, request_token_method=None, \
-                    access_token_url=None, access_token_method=None, \
+    def provider_add(self, name=None, domain_name=None, auth_type=None,
+                    request_token_url=None, request_token_method=None,
+                    access_token_url=None, access_token_method=None,
                     auth_url=None
                     ):
+        # TODO: Always validate parameters (also when them passed as command arg).
         if not name:
-            name = self.question("Enter the name of the provider (e.g. 'odesk'):", \
+            name = self.question("Enter the name of the provider (e.g. 'odesk'):",
                        validation_func = self.validate_provider_name)
+#        else:
+#            name = self.validate_provider_name(name)
 
         if not domain_name:
             print "Enter the domain name (may be comma-separated list):"
             domain_name = unicode(raw_input())
 
         if not auth_type:
-            auth_type = self.question("Enter the auth type ('OAuth1.0', 'OAuth2.0'):", \
+            auth_type = self.question("Enter the auth type ('OAuth1.0', 'OAuth2.0'):",
                  validation_func=self.validate_auth_type)
 
         if not request_token_url:
@@ -87,7 +96,7 @@ class PrestoCfg(object):
 
         if not request_token_method: 
             request_token_method = self.question("Request token method ['POST']:",
-                                default=u"POST",\
+                                default=u"POST",
                                 validation_func=self.validate_method)
 
         if not access_token_url:
@@ -97,7 +106,7 @@ class PrestoCfg(object):
         if not access_token_method:
             print "Access token method ['POST']:"
             access_token_method = self.question("Access token method ['POST']:",
-                                default=u"POST",\
+                                default=u"POST",
                                 valodation_func=self.validate_method)
 
         if not auth_url:
@@ -209,7 +218,7 @@ class PrestoCfg(object):
     def validate_app_name(self, name, provider):
         for app in provider['apps']:
             if app['name'] == name:
-                raise PrestoCfgException("App with name '%s' already exist on provider '%s'." % \
+                raise PrestoCfgAlreadyExist("App with name '%s' already exist on provider '%s'." % \
                        (name, provider['name']))
 
     def question(self, text, default=None, validation_func=None, ext_func=None, ext_param={}):
@@ -224,6 +233,15 @@ class PrestoCfg(object):
                 if validation_func:
                     try:
                         val = validation_func(value, **ext_param)
+                    except PrestoCfgAlreadyExist, e:
+                        print e
+                        while True:
+                            print "Rewrite '%s'? (y/n)" % value
+                            yes_no = unicode(raw_input())
+                            if yes_no in ('Y', 'y', 'yes', '\n'):
+                                return value
+                            if yes_no in ('N', 'n', 'no'):
+                                raise e
                     except PrestoCfgException, e:
                         print e
                         continue
@@ -249,14 +267,28 @@ class PrestoCfg(object):
             public_key = self.question("Enter the public key")
 
         if not secret_key:
-            public_key = self.question("Enter the secret key")
+            secret_key = self.question("Enter the secret key")
 
         if not provider.has_key('apps'):
             provider['apps'] = []
-        provider['apps'].append({ "name": name,
+
+        app = { "name": name,
                                 "public_key": public_key,
-                                "secret_key": secret_key })
+                                "secret_key": secret_key 
+              }
+        app_ex_index = None
+        for i, ex_app in enumerate(provider['apps']):
+            if ex_app['name'] == name:
+                app_ex_index = i
+                break
+        if app_ex_index != None:
+            provider['apps'][app_ex_index]["public_key"] = public_key
+            provider['apps'][app_ex_index]["secret_key"] = secret_key
+            
+        else:
+            provider['apps'].append(app)
         self.save()
+
         print "Added new app '%s'" % name
 
 
@@ -339,7 +371,7 @@ class PrestoCfg(object):
         if app.get('tokens', None):
             for token in app['tokens']:
                 if token['name'] == name:
-                    raise PrestoCfgException("Token with name '%s' already exist on app '%s'." % \
+                    raise PrestoCfgAlreadyExist("Token with name '%s' already exist on app '%s'." % \
                            (name, app['name']))
 
     def token_add(self, provider, app, name):
@@ -375,9 +407,19 @@ class PrestoCfg(object):
         token = {'name': name,
                 'token_key': self.access_token,
                 'token_secret':self.access_token_secret}
+
         if not self.app.has_key('tokens'):
             self.app['tokens'] = []
-        self.app['tokens'].append(token)
+        token_ex_index = None
+        for i, ex_token in enumerate(self.app['tokens']):
+            if ex_token['name'] == name:
+                token_ex_index = i
+                break
+        if token_ex_index != None:
+            self.app['tokens'][token_ex_index] = token
+        else:
+            self.app['tokens'].append(token)
+
         self.save()
 
         print "The token is saved as '%s'." % (name)
