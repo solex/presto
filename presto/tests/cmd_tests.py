@@ -190,8 +190,10 @@ class TestConfigCommands(TestCase):
         self.assertTrue("Added new app '%s'" % (name) in output, output)
 
     @patch("presto.config_utils.PrestoCfg.get_request_token")
-    @patch("presto.config_utils.PrestoCfg.get_authorize_url", lambda obj: "www.auth.com")
-    @patch("presto.config_utils.PrestoCfg.get_access_token", get_access_token_mock)
+    @patch("presto.config_utils.PrestoCfg.get_authorize_url", 
+           lambda obj: "www.auth.com")
+    @patch("presto.config_utils.PrestoCfg.get_access_token", 
+           get_access_token_mock)
     def test_token_add(self, *mocks):
         """
         Tests `token_add` command.
@@ -208,7 +210,8 @@ class TestConfigCommands(TestCase):
         self.assertEqual(result, None,
                          'Nothing should be returned')
 
-        self.assertTrue("The token is saved as '%s'" % kwargs['name'] in output, output)
+        self.assertTrue("The token is saved as '%s'" % kwargs['name'] \
+                                                    in output, output)
 
     def test_get_provider_by_id(self):
         self.assertRaises(PrestoCfgException,
@@ -225,5 +228,3 @@ class TestConfigCommands(TestCase):
         prestocfg = PrestoCfg()
         prestocfg.cfg = json.loads('{}')
         self.assertRaises(PrestoCfgException, prestocfg.get_provider_by_id, 1)
-
-
