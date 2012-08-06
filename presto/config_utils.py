@@ -12,14 +12,25 @@ import urllib
 class PrestoCfgException(Exception):
     pass
 
+class PrestoValidationError(PrestoCfgException):
+    pass
+
 class PrestoCfgAlreadyExist(PrestoCfgException):
     pass
 
 class PrestoCfg(object):
-    PRESTO_CONFIG_FILE_NAME =  os.path.join(os.getenv("HOME"), ".presto")
+    PRESTO_CONFIG_FILE_NAME = os.path.join(os.getenv("HOME"), ".presto")
 
     def __init__(self):
         self.load(self.PRESTO_CONFIG_FILE_NAME)
+
+    def set_input_func(self, input_func=raw_input):
+            self._input_func = input_func
+
+    def get_input_func(self):
+        return self._input_func
+
+    input_func = property(get_input_func, set_input_func)
 
     def load(self, file_name):
         if os.path.exists(file_name):
@@ -49,7 +60,7 @@ class PrestoCfg(object):
     def provider_list(self):
         if self.cfg.get('providers', []):
             for i, provider in enumerate(self.cfg['providers']):
-                print "[%d] %s" % (i+1, provider["name"])
+                print "[%d] %s" % (i + 1, provider["name"])
             print ""
         else:
             raise PrestoCfgException("Please add provider.")
@@ -84,7 +95,7 @@ class PrestoCfg(object):
 
         if not domain_name:
             print "Enter the domain name (may be comma-separated list):"
-            domain_name = unicode(raw_input())
+            domain_name = unicode(self.input_func())
 
         if not auth_type:
             auth_type = self.question("Enter the auth type ('OAuth1.0', 'OAuth2.0'):",
@@ -92,7 +103,7 @@ class PrestoCfg(object):
 
         if not request_token_url:
             print "Request token URL:"
-            request_token_url = unicode(raw_input())
+            request_token_url = unicode(self.input_func())
 
         if not request_token_method: 
             request_token_method = self.question("Request token method ['POST']:",
@@ -101,7 +112,7 @@ class PrestoCfg(object):
 
         if not access_token_url:
             print "Access token URL:"
-            access_token_url = unicode(raw_input())
+            access_token_url = unicode(self.input_func())
 
         if not access_token_method:
             print "Access token method ['POST']:"
@@ -111,7 +122,7 @@ class PrestoCfg(object):
 
         if not auth_url:
             print "Auth URL:"
-            auth_url = unicode(raw_input())
+            auth_url = unicode(self.input_func())
 
         provider = {
             "name": name,
@@ -130,7 +141,7 @@ class PrestoCfg(object):
 
         self.save()
 
-        print "Added new provider %s" % (name)
+        print "Added new provider '%s'" % (name)
 
     def app_list(self):
         apps_count = 0
@@ -226,7 +237,7 @@ class PrestoCfg(object):
             print text
             if ext_func:
                 ext_func(**ext_param)
-            value = unicode(raw_input())
+            value = unicode(self.input_func())
             if value == "" and default:
                 value = default
             if value:
@@ -237,7 +248,7 @@ class PrestoCfg(object):
                         print e
                         while True:
                             print "Rewrite '%s'? (y/n)" % value
-                            yes_no = unicode(raw_input())
+                            yes_no = unicode(self.input_func())
                             if yes_no in ('Y', 'y', 'yes', '\n'):
                                 return value
                             if yes_no in ('N', 'n', 'no'):
@@ -396,7 +407,6 @@ class PrestoCfg(object):
             name = self.question("Enter the name of the authorization ['default']:",\
                           "default", self.validate_token_name, \
                           ext_param={"app": self.app})
-
 
         self.get_request_token()
 

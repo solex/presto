@@ -3,50 +3,65 @@
 
 import os, sys, json, functools, random
 import StringIO
-from mock import Mock, patch
+from mock import patch
 from unittest import TestCase
 
-from presto.config_utils import PrestoCfg, PrestoCfgException
+from presto.config_utils import PrestoCfg, PrestoCfgException, \
+    PrestoValidationError
 
 
 TEST_CONFIG_NAME = os.path.join(os.path.dirname(__file__), 'test_presto.cfg')
 
 
 def load_config(file_name):
-        f = file(file_name, "r")
-        cfg = f.read()
-        f.close()
-        return json.loads(cfg)
+    '''
+    Loads presto configuration from file.
+
+    :param file_name: path to config file.
+    '''
+    config_file = file(file_name, "r")
+    cfg = config_file.read()
+    config_file.close()
+    return json.loads(cfg)
 
 
-def intercept_output(view_func, *args, **kwargs):
-    """
-    Intercepts command output and returns it as second ret value.
-    """
-    @functools.wraps(view_func)
-    def _view_func(*args, **kwargs):
+def intercept_output(func, *args, **kwargs):
+    '''
+    Decorator, that intercepts command output and returns it as second ret value.
+
+    :param func: function to decorate.
+    '''
+    @functools.wraps(func)
+    def _func(*args, **kwargs):
         result = None
         output = ''
         saved_stdout = sys.stdout
         try:
             out = StringIO.StringIO()
             sys.stdout = out
-            result = view_func(*args, **kwargs)
+            result = func(*args, **kwargs)
             output = out.getvalue().strip()
         finally:
             sys.stdout = saved_stdout
         return result, output
-    return _view_func
+    return _func
+
+
+def get_access_token_mock(self, verifier):
+    self.access_token = 'access_token'
+    self.access_token_secret = 'access_token_secret'
 
 
 class TestConfigCommands(TestCase):
+    """
+    Tests for creating presto configuration commands.
+    """
     def setUp(self):
         self.prestocfg = PrestoCfg()
         self.config = load_config(TEST_CONFIG_NAME)
         self.prestocfg.cfg = load_config(TEST_CONFIG_NAME)
 
-    @patch("presto.config_utils.PrestoCfg.load")
-    def test_provider_list(self, mock_load):
+    def test_provider_list(self):
         """
         Tests `provider_list` command.
         """
@@ -55,11 +70,11 @@ class TestConfigCommands(TestCase):
             return self.prestocfg.provider_list()
 
         result, output = provider_list()
-        self.assertEqual(result, None, 
+        self.assertEqual(result, None,
                          'Nothing should be returned')
         provider_count = 0
         for provider in self.config['providers']:
-            self.assertTrue(provider['name'] in output, 
+            self.assertTrue(provider['name'] in output,
                             'Provider %s not found' % provider['name'])
             provider_count += 1
         self.assertTrue(provider_count, 2)
@@ -78,8 +93,8 @@ class TestConfigCommands(TestCase):
                     access_token_url, access_token_method,
                     auth_url)
 
-        kwargs = dict(name='Test Provider', 
-                      domain_name='test.com', 
+        kwargs = dict(name='Test Provider',
+                      domain_name='test.com',
                       auth_type='OAuth1.0',
                       request_token_url='www.token.com/request',
                       request_token_method='POST',
@@ -87,14 +102,35 @@ class TestConfigCommands(TestCase):
                       access_token_method='POST',
                       auth_url='www.test.com/auth')
         result, output = provider_add(**kwargs)
-        self.assertEqual(result, None, 
+        self.assertEqual(result, None,
                          'Nothing should be returned')
         name = kwargs['name']
-        self.assertTrue("Added new provider %s" % (name) in output)
+        self.assertTrue("Added new provider '%s'" % (name) in output)
 
         provider = self.prestocfg.get_provider_by_name(name)
         for key, val in kwargs.iteritems():
-            self.assertEquals(provider[key], val)
+            self.assertEquals(provider[key], val,
+                "Invalid value assigned.")
+
+        provider_kwargs = kwargs.copy()
+        provider_kwargs['name'] = ' '
+        self.assertRaises(PrestoValidationError, 
+                          provider_add, **provider_kwargs)
+
+        provider_kwargs = kwargs.copy()
+        provider_kwargs['domain_name'] = '%$$$%'
+        self.assertRaises(PrestoValidationError, 
+                          provider_add, **provider_kwargs)
+
+        provider_kwargs = kwargs.copy()
+        provider_kwargs['auth_type'] = 'invalid-auth_type'
+        self.assertRaises(PrestoValidationError, 
+                          provider_add, **provider_kwargs)
+
+        provider_kwargs = kwargs.copy()
+        provider_kwargs['request_token_method'] = 'invalid-request_token_method'
+        self.assertRaises(PrestoValidationError, 
+                          provider_add, **provider_kwargs)
 
     def test_app_list(self):
         """
@@ -105,12 +141,12 @@ class TestConfigCommands(TestCase):
             return self.prestocfg.app_list()
 
         result, output = app_list()
-        self.assertEqual(result, None, 
+        self.assertEqual(result, None,
                          'Nothing should be returned')
         apps_count = 0
         for provider in self.config['providers']:
             for app in provider['apps']:
-                self.assertTrue(app['name'] in output, 
+                self.assertTrue(app['name'] in output,
                             'App %s not found' % app['name'])
                 apps_count += 1
         self.assertTrue(apps_count, 3)
@@ -126,27 +162,60 @@ class TestConfigCommands(TestCase):
         providers = self.config['providers']
         provider = random.choice(providers)
         result, output = app_list_by_provider(provider)
-        self.assertEqual(result, None, 
+        self.assertEqual(result, None,
                          'Nothing should be returned')
         apps_count = 0
         for app in provider['apps']:
-            self.assertTrue(app['name'] in output, 
+            self.assertTrue(app['name'] in output,
                         'App %s not found' % app['name'])
             apps_count += 1
         self.assertTrue(apps_count, len(provider['apps']))
 
     def test_app_add(self):
-        pass
+        """
+        Tests `app_add` command.
+        """
+        @intercept_output
+        def app_add(provider, public_key, secret_key, name):
+            return self.prestocfg.app_add(provider, public_key, secret_key, name)
 
-    def token_add(self):
-        pass
+        kwargs = dict(provider="odesk", 
+                      public_key="public key", 
+                      secret_key="private key", 
+                      name='app1')
+        result, output = app_add(**kwargs)
+        self.assertEqual(result, None,
+                         'Nothing should be returned')
+        name = kwargs['name']
+        self.assertTrue("Added new app '%s'" % (name) in output, output)
+
+    @patch("presto.config_utils.PrestoCfg.get_request_token")
+    @patch("presto.config_utils.PrestoCfg.get_authorize_url", lambda obj: "www.auth.com")
+    @patch("presto.config_utils.PrestoCfg.get_access_token", get_access_token_mock)
+    def test_token_add(self, *mocks):
+        """
+        Tests `token_add` command.
+        """
+        @intercept_output
+        @patch('presto.config_utils.PrestoCfg.input_func', lambda obj: 'OK')
+        def token_add(provider, app, name):
+            return self.prestocfg.token_add(provider, app, name)
+
+        kwargs = dict(provider='odesk', 
+                      app='default', 
+                      name='token')
+        result, output = token_add(**kwargs)
+        self.assertEqual(result, None,
+                         'Nothing should be returned')
+
+        self.assertTrue("The token is saved as '%s'" % kwargs['name'] in output, output)
 
     def test_get_provider_by_id(self):
-        self.assertRaises(PrestoCfgException, 
+        self.assertRaises(PrestoCfgException,
                           self.prestocfg.get_provider_by_id, -1)
-        self.assertRaises(PrestoCfgException, 
+        self.assertRaises(PrestoCfgException,
                           self.prestocfg.get_provider_by_id, 'a')
-        self.assertRaises(PrestoCfgException, 
+        self.assertRaises(PrestoCfgException,
                           self.prestocfg.get_provider_by_id, 1000)
 
         provider = self.prestocfg.get_provider_by_id(1)
@@ -156,3 +225,5 @@ class TestConfigCommands(TestCase):
         prestocfg = PrestoCfg()
         prestocfg.cfg = json.loads('{}')
         self.assertRaises(PrestoCfgException, prestocfg.get_provider_by_id, 1)
+
+
