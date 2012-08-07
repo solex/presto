@@ -21,16 +21,9 @@ class PrestoCfgAlreadyExist(PrestoCfgException):
 class PrestoCfg(object):
     PRESTO_CONFIG_FILE_NAME = os.path.join(os.getenv("HOME"), ".presto")
 
-    def __init__(self):
+    def __init__(self, input_func=raw_input):
         self.load(self.PRESTO_CONFIG_FILE_NAME)
-
-    def set_input_func(self, input_func=raw_input):
-            self._input_func = input_func
-
-    def get_input_func(self):
-        return self._input_func
-
-    input_func = property(get_input_func, set_input_func)
+        self.input_func = input_func
 
     def load(self, file_name):
         if os.path.exists(file_name):
