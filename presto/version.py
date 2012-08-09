@@ -2,11 +2,10 @@
 # coding: utf-8
 
 """
-Python bindings to odesk API
-python-odesk version 0.4.1
-(C) 2010-2011 oDesk
+pRESTo
+(C) 2012 oDesk
 """
-VERSION = (0, 0, 1, 'alpha', 2)
+VERSION = (0, 0, 1, 'alpha', 3)
 
 
 def get_version():
