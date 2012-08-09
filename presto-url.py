@@ -101,7 +101,7 @@ if __name__ == '__main__':
             print_json(dict(headers), False)
         else:
             for i  in headers:
-                print "%s: %s" % (i, headers[i])
+                print "%s: %s" % (i.title(), headers[i])
 
     if args['-I']:
         if args['-c']:
@@ -110,7 +110,7 @@ if __name__ == '__main__':
             print_json(dict(response), False)
         else:
             for i  in response:
-                print "%s: %s" % (i, response[i])
+                print "%s: %s" % (i.title(), response[i])
     else:
         if response["content-type"] == "application/json":
             if args['-c']:
