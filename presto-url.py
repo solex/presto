@@ -51,15 +51,16 @@ ver = version.get_version()
 
 if __name__ == '__main__':
     args = docopt(__doc__, argv=sys.argv[1:], help=True, version=ver)
+
     uri = unicode(args['<url>'])
     sch, net, path, par, query, fra = urlparse(uri)
-    
+
     method = unicode((args['--request'] or u'GET').upper())
     body = args['-d']
     headers = {}
+
     if body:
         headers['Content-Type'] = u'application/x-www-form-urlencoded'
-
 
     prestocfg = PrestoCfg()
     if args['-a']:
@@ -93,30 +94,30 @@ if __name__ == '__main__':
     response, content =    httplib2.Http.request(http, uri, method=method, body=body,
             headers=headers)
 
-    if args['-i']:
-        print "\nHeaders:"
+    if args['-i'] and headers:
         if args['-c']:
             print_json(dict(headers), True)
         elif args['-p']:
             print_json(dict(headers), False)
         else:
-            print headers
+            for i  in headers:
+                print "%s: %s" % (i, headers[i])
 
-    print "\nResponse:"
-    if args['-c']:
-        print_json(dict(response), True)
-    elif args['-p']:
-        print_json(dict(response), False)
-    else:
-        print response                        
-
-    print "\nContent:"
-    if response["content-type"] == "application/json":
+    if args['-I']:
         if args['-c']:
-            print_json(json.loads(content), True)
+            print_json(dict(response), True)
         elif args['-p']:
-            print_json(json.loads(content), False)
+            print_json(dict(response), False)
+        else:
+            for i  in response:
+                print "%s: %s" % (i, response[i])
+    else:
+        if response["content-type"] == "application/json":
+            if args['-c']:
+                print_json(json.loads(content), True)
+            elif args['-p']:
+                print_json(json.loads(content), False)
+            else:
+                print content
         else:
             print content
-    else:
-        print content
