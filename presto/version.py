@@ -6,7 +6,7 @@ Python bindings to odesk API
 python-odesk version 0.4.1
 (C) 2010-2011 oDesk
 """
-VERSION = (0, 0, 1, 'alpha', 1)
+VERSION = (0, 0, 1, 'alpha', 2)
 
 
 def get_version():
