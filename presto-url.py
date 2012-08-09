@@ -51,15 +51,19 @@ ver = version.get_version()
 
 if __name__ == '__main__':
     args = docopt(__doc__, argv=sys.argv[1:], help=True, version=ver)
-    url = unicode(args['<url>'])
-    sch, net, path, par, query, fra = urlparse(url)
+    uri = unicode(args['<url>'])
+    sch, net, path, par, query, fra = urlparse(uri)
     
     method = unicode((args['--request'] or u'GET').upper())
-    data = args['-d']
+    body = args['-d']
+    headers = {}
+    if body:
+        headers['Content-Type'] = u'application/x-www-form-urlencoded'
+
 
     prestocfg = PrestoCfg()
-    try:
-        if args['-a']:
+    if args['-a']:
+        try:
             if args['--auth-provider']:
                 provider = prestocfg.get_provider_by_name(args['--auth-provider'])
             else:
@@ -72,22 +76,21 @@ if __name__ == '__main__':
             token =  prestocfg.get_token_by_name(app, token_name)
             access_token_key = unicode(token['token_key'])
             access_token_secret = unicode(token['token_secret'])
-    except PrestoCfgException, e:
-         print "Error: %s " % e
-         raise
+        except PrestoCfgException, e:
+             print "Error: %s " % e
+             raise
 
-    client = Client(unicode(app['public_key']),
-            unicode(app['secret_key']),
-            resource_owner_key=access_token_key,
-            resource_owner_secret=access_token_secret,
-            signature_type=SIGNATURE_TYPE_QUERY
-    )
-    headers = {}
-    if data:
-        headers['Content-Type'] = u'application/x-www-form-urlencoded'
-    uri, headers, body =  client.sign(uri=url, http_method=method, headers=headers, body=data)
+        client = Client(unicode(app['public_key']),
+                unicode(app['secret_key']),
+                resource_owner_key=access_token_key,
+                resource_owner_secret=access_token_secret,
+                signature_type=SIGNATURE_TYPE_QUERY
+        )
+
+        uri, headers, body =  client.sign(uri=uri, http_method=method, headers=headers, body=body)
+
     http = httplib2.Http()
-    response, content = httplib2.Http.request(http, uri, method=method, body=body,
+    response, content =    httplib2.Http.request(http, uri, method=method, body=body,
             headers=headers)
 
     if args['-i']:
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     elif args['-p']:
         print_json(dict(response), False)
     else:
-        print response
+        print response                        
 
     print "\nContent:"
     if response["content-type"] == "application/json":
