@@ -1,12 +1,23 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import os
+import os, functools
 import simplejson as json
 from oauthlib.oauth1.rfc5849 import *
 import httplib2
 import urlparse
 import urllib
+
+from presto.models import config, Provider, Application
+
+
+def need_providers(func, *args, **kwargs):
+    @functools.wraps(func)
+    def _func(*args, **kwargs):
+        if not config.providers:
+            raise PrestoCfgException("Add providers please.")
+        return func(*args, **kwargs)
+    return _func
 
 
 class PrestoCfgException(Exception):
@@ -19,142 +30,69 @@ class PrestoCfgAlreadyExist(PrestoCfgException):
     pass
 
 class PrestoCfg(object):
-    PRESTO_CONFIG_FILE_NAME = os.path.join(os.getenv("HOME"), ".presto")
-
-    def __init__(self):
-        self.load(self.PRESTO_CONFIG_FILE_NAME)
-
-    def set_input_func(self, input_func=raw_input):
-            self._input_func = input_func
-
-    def get_input_func(self):
-        return self._input_func
-
-    input_func = property(get_input_func, set_input_func)
-
-    def load(self, file_name):
-        if os.path.exists(file_name):
-            f = file(file_name, "r")
-            cfg = f.read()
-            f.close()
-        else:
-            f = file(file_name, "w+")
-            f_template = open(os.path.join(os.path.dirname(__file__), 'presto.cfg'))
-            cfg = f_template.read()
-            f_template.close()
-            f.write(cfg)
-            f.close()
-        if cfg:
-            self.cfg = json.loads(cfg)
-        else:
-            raise PrestoCfgException("Empty configuration file")
-
-    def save(self):
-        if self.cfg:
-            cfg_file = open(self.PRESTO_CONFIG_FILE_NAME, 'w')
-            cfg_json = json.dumps(self.cfg, sort_keys=True, indent=4 * ' ')
-            cfg_json = '\n'.join([l.rstrip() for l in  cfg_json.splitlines()])
-            cfg_file.write(cfg_json)
-            cfg_file.close()
-
+    '''
+    Commands for configuring presto utils.
+    '''
+    @need_providers
     def provider_list(self):
-        if self.cfg.get('providers', []):
-            for i, provider in enumerate(self.cfg['providers']):
-                print "[%d] %s" % (i + 1, provider["name"])
-            print ""
-        else:
-            raise PrestoCfgException("Please add provider.")
+        '''
+        Displays list of all providers in the config.
+        '''
+        for i, provider in enumerate(config.providers):
+            print "[%d] %s" % (i + 1, provider.name)
+        print ""
 
-    def validate_provider_name(self, name):
-        if self.cfg.get('providers', []):
-            for provider in self.cfg['providers']:
-                if provider['name'] == name:
-                    raise PrestoCfgAlreadyExist("Provider with name '%s' already exist on provider '%s'." % \
-                           (name, provider['name']))
-
-    def validate_auth_type(self, type):
-        if not type in (u'OAuth1.0', u'OAuth2.0'):
-            raise PrestoCfgException("Invalid Auth type. Choose in ('OAuth1.0', 'OAuth2.0').")
-
-    def validate_method(self, method):
-        if not method in (u'POST', u'GET'):
-            raise PrestoCfgException("Invalid method. Choose in ('POST', 'GET').")
-
+    @need_providers
+    def app_list(self):
+        '''
+        Displays list of all applications in the config.
+        '''
+        apps_count = 0
+        for i, prov in enumerate(config.providers):
+            for app in prov.apps:
+                apps_count += 1
+                print "[%d] %s (%s)" % (apps_count, app.name, prov.name)
+        print ""
 
     def provider_add(self, name=None, domain_name=None, auth_type=None,
                     request_token_url=None, request_token_method=None,
                     access_token_url=None, access_token_method=None,
                     auth_url=None
                     ):
-        # TODO: Always validate parameters (also when them passed as command arg).
-        if not name:
-            name = self.question("Enter the name of the provider (e.g. 'odesk'):",
-                       validation_func = self.validate_provider_name)
-#        else:
-#            name = self.validate_provider_name(name)
+        '''
+        Adds new provider to the configuration.
+        
+        :param name: provider name.
+        :param domain_name: provider domain.
+        :param auth_type: provider auth type: OAuth1.0 or OAuth2.0.
+        :param request_token_url:
+        :param request_token_method:
+        :param access_token_url:
+        :param access_token_method:
+        :param auth_url:
+        '''
+        provider = Provider(data=locals(), parent=config)
+        if provider.is_valid():
+            config.providers.append(provider)
+        config.save_to_file()
+        print "Added new provider '%s'" % (provider.name)
 
-        if not domain_name:
-            print "Enter the domain name (may be comma-separated list):"
-            domain_name = unicode(self.input_func())
+    @need_providers
+    def app_add(self, provider, public_key, secret_key, name=None):
+        '''
+        Adds new application for specified `provider`.
 
-        if not auth_type:
-            auth_type = self.question("Enter the auth type ('OAuth1.0', 'OAuth2.0'):",
-                 validation_func=self.validate_auth_type)
-
-        if not request_token_url:
-            print "Request token URL:"
-            request_token_url = unicode(self.input_func())
-
-        if not request_token_method: 
-            request_token_method = self.question("Request token method ['POST']:",
-                                default=u"POST",
-                                validation_func=self.validate_method)
-
-        if not access_token_url:
-            print "Access token URL:"
-            access_token_url = unicode(self.input_func())
-
-        if not access_token_method:
-            print "Access token method ['POST']:"
-            access_token_method = self.question("Access token method ['POST']:",
-                                default=u"POST",
-                                valodation_func=self.validate_method)
-
-        if not auth_url:
-            print "Auth URL:"
-            auth_url = unicode(self.input_func())
-
-        provider = {
-            "name": name,
-            "domain_name": domain_name,
-            "auth_type": auth_type,
-            "request_token_url": request_token_url,
-            "request_token_method": request_token_method,
-            "access_token_url": access_token_url,
-            "access_token_method": access_token_method,
-            "auth_url": auth_url
-        }
-
-        if not self.cfg.has_key('providers'):
-            self.cfg['providers'] = []
-        self.cfg['providers'].append(provider)
-
-        self.save()
-
-        print "Added new provider '%s'" % (name)
-
-    def app_list(self):
-        apps_count = 0
-        if self.cfg.get('providers', []):
-            for i, provider in enumerate(self.cfg['providers']):
-                if provider.get('apps', []):
-                    for app in provider['apps']:
-                        apps_count+=1
-                        print "[%d] %s (%s)" % \
-                        (apps_count, app["name"], provider['name'])
-            print ""
-        else:
-            raise PrestoCfgException("Please add provider.")
+        :param provider: provider positional index.
+        :param public_key: application public key.
+        :param secret_key: application secret key.
+        :param name: application name.
+        '''
+        app = Application(data=locals(), parent=config)
+        if app.is_valid():
+            provider = app.cleaned_data['provider']
+            provider.apps.append(app)
+        config.save_to_file()
+        print "Added new app '%s'" % app.name
 
     def app_list_by_provider(self, provider):
         for i, app in enumerate(provider['apps']):
@@ -260,47 +198,7 @@ class PrestoCfg(object):
                         return val
                 return value
 
-    def app_add(self, provider, public_key, secret_key, name=None):
-
-        if not provider:
-            provider = self.question("Choose the provider:", \
-                       ext_func=self.provider_list, \
-                       validation_func = self.get_provider_by_id)
-        else:
-            provider = self.get_provider_by_name(provider)
-
-        if not name:
-            name = self.question("Enter the name of the app ['default']:",\
-                          "default", self.validate_app_name, \
-                          ext_param={"provider": provider})
-
-        if not public_key:
-            public_key = self.question("Enter the public key")
-
-        if not secret_key:
-            secret_key = self.question("Enter the secret key")
-
-        if not provider.has_key('apps'):
-            provider['apps'] = []
-
-        app = { "name": name,
-                                "public_key": public_key,
-                                "secret_key": secret_key 
-              }
-        app_ex_index = None
-        for i, ex_app in enumerate(provider['apps']):
-            if ex_app['name'] == name:
-                app_ex_index = i
-                break
-        if app_ex_index != None:
-            provider['apps'][app_ex_index]["public_key"] = public_key
-            provider['apps'][app_ex_index]["secret_key"] = secret_key
-            
-        else:
-            provider['apps'].append(app)
-        self.save()
-
-        print "Added new app '%s'" % name
+    
 
 
     def get_request_token(self):
