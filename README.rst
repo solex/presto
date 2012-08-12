@@ -10,4 +10,12 @@ Requirements
     * `docopt`
     * `oauthlib`
     * `json_tools`
+    * `simplejson`
+
+Development
+===========
+
+Run test::
+
+    `nosetests`
 
