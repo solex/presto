@@ -109,3 +109,16 @@ class Model(object):
 
             value = dict.get(fieldname, field.DEFAULT_VALUE)
             field.set_value(value, parent=self)
+
+    def filter(self, fieldname, **kwargs):
+        def apply_filters(item, **kwargs):
+            for fieldname, value in kwargs.iteritems():
+                if getattr(item, fieldname) != value:
+                    return False
+            return True
+
+        items = getattr(self, fieldname)
+        for item in items:
+            if apply_filters(item, **kwargs):
+                return item
+        return None

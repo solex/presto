@@ -46,6 +46,7 @@ from  json_tools.printer import print_json
 
 from presto.config_utils import PrestoCfg, PrestoCfgException
 from presto import version
+from presto.models import config
 
 ver = version.get_version()
 
@@ -53,34 +54,35 @@ if __name__ == '__main__':
     args = docopt(__doc__, argv=sys.argv[1:], help=True, version=ver)
     url = unicode(args['<url>'])
     sch, net, path, par, query, fra = urlparse(url)
-    
+
     method = unicode((args['--request'] or u'GET').upper())
     data = args['-d']
 
-    prestocfg = PrestoCfg()
     try:
         if args['-a']:
             if args['--auth-provider']:
-                provider = prestocfg.get_provider_by_name(args['--auth-provider'])
+                provider = config.filter("providers", name=args['--auth-provider'])
             else:
-                provider = prestocfg.get_provider_by_domain_name(net)
+                provider = config.filter("providers", domain_name=net)
 
             app_name = args['--auth-app'] or u'default'
-            app = prestocfg.get_app_by_name(provider, app_name)
+            app = provider.filter('apps', name=app_name)
 
             token_name = args['--auth-token'] or u'default'
-            token =  prestocfg.get_token_by_name(app, token_name)
-            access_token_key = unicode(token['token_key'])
-            access_token_secret = unicode(token['token_secret'])
+            token =  app.filter('tokens', name=token_name)
+
+            access_token_key = token.token_key
+            access_token_secret = token.token_secret
     except PrestoCfgException, e:
          print "Error: %s " % e
          raise
 
-    client = Client(unicode(app['public_key']),
-            unicode(app['secret_key']),
-            resource_owner_key=access_token_key,
-            resource_owner_secret=access_token_secret,
-            signature_type=SIGNATURE_TYPE_QUERY
+    client = Client(
+        app.public_key,
+        app.secret_key,
+        resource_owner_key=access_token_key,
+        resource_owner_secret=access_token_secret,
+        signature_type=SIGNATURE_TYPE_QUERY
     )
     headers = {}
     if data:

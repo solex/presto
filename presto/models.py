@@ -214,19 +214,6 @@ class Configuration(Model):
             raise ValidationError("Provider must be from 1 to %d." % len(providers))
         return provider
 
-    def filter(self, fieldname, **kwargs):
-        def apply_filters(item, **kwargs):
-            for fieldname, value in kwargs.iteritems():
-                if getattr(item, fieldname) != value:
-                    return False
-            return True
-
-        items = getattr(self, fieldname)
-        for item in items:
-            if apply_filters(item, **kwargs):
-                return provider
-        return None
-
     def provider_list(self):
         for i, provider in enumerate(self.providers):
             print "[%d] %s" % (i + 1, provider.name)
