@@ -52,14 +52,20 @@ ver = version.get_version()
 
 if __name__ == '__main__':
     args = docopt(__doc__, argv=sys.argv[1:], help=True, version=ver)
-    url = unicode(args['<url>'])
-    sch, net, path, par, query, fra = urlparse(url)
+
+    uri = unicode(args['<url>'])
+    sch, net, path, par, query, fra = urlparse(uri)
 
     method = unicode((args['--request'] or u'GET').upper())
-    data = args['-d']
+    body = args['-d']
+    headers = {}
 
-    try:
-        if args['-a']:
+    if body:
+        headers['Content-Type'] = u'application/x-www-form-urlencoded'
+
+
+    if args['-a']:
+        try:
             if args['--auth-provider']:
                 provider = config.filter("providers", name=args['--auth-provider'])
             else:
@@ -73,49 +79,47 @@ if __name__ == '__main__':
 
             access_token_key = token.token_key
             access_token_secret = token.token_secret
-    except PrestoCfgException, e:
-         print "Error: %s " % e
-         raise
+        except PrestoCfgException, e:
+            print "Error: %s " % e
+            raise
 
-    client = Client(
-        app.public_key,
-        app.secret_key,
-        resource_owner_key=access_token_key,
-        resource_owner_secret=access_token_secret,
-        signature_type=SIGNATURE_TYPE_QUERY
-    )
-    headers = {}
-    if data:
-        headers['Content-Type'] = u'application/x-www-form-urlencoded'
-    uri, headers, body =  client.sign(uri=url, http_method=method, headers=headers, body=data)
+        client = Client(app.public_key,
+                        app.secret_key,
+                        resource_owner_key=access_token_key,
+                        resource_owner_secret=access_token_secret,
+                        signature_type=SIGNATURE_TYPE_QUERY)
+
+        uri, headers, body =  client.sign(uri=uri, http_method=method, headers=headers, body=body)
+
+
     http = httplib2.Http()
-    response, content = httplib2.Http.request(http, uri, method=method, body=body,
+    response, content =    httplib2.Http.request(http, uri, method=method, body=body,
             headers=headers)
 
-    if args['-i']:
-        print "\nHeaders:"
+    if args['-i'] and headers:
         if args['-c']:
             print_json(dict(headers), True)
         elif args['-p']:
             print_json(dict(headers), False)
         else:
-            print headers
+            for i  in headers:
+                print "%s: %s" % (i.title(), headers[i])
 
-    print "\nResponse:"
-    if args['-c']:
-        print_json(dict(response), True)
-    elif args['-p']:
-        print_json(dict(response), False)
-    else:
-        print response
-
-    print "\nContent:"
-    if response["content-type"] == "application/json":
+    if args['-I']:
         if args['-c']:
-            print_json(json.loads(content), True)
+            print_json(dict(response), True)
         elif args['-p']:
-            print_json(json.loads(content), False)
+            print_json(dict(response), False)
+        else:
+            for i  in response:
+                print "%s: %s" % (i.title(), response[i])
+    else:
+        if response["content-type"] == "application/json":
+            if args['-c']:
+                print_json(json.loads(content), True)
+            elif args['-p']:
+                print_json(json.loads(content), False)
+            else:
+                print content
         else:
             print content
-    else:
-        print content
