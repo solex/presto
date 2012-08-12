@@ -147,7 +147,7 @@ class TestConfigCommands(TestCase):
         """
         Tests `token_add` command.
         """
-        input_mock.return_value = 'OK'
+        input_mock.return_value = 'verifier'
 
         @intercept_output
         def token_add(provider, app, name):
@@ -159,6 +159,7 @@ class TestConfigCommands(TestCase):
         result, output = token_add(**kwargs)
         self.assertEqual(result, None,
                          'Nothing should be returned')
+        self.assertTrue(input_mock.called)
 
         self.assertTrue("The token is saved as '%s'" % kwargs['name'] \
                                                     in output, output)
