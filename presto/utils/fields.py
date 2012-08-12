@@ -82,7 +82,7 @@ class Field(object):
     def yesno(self):
         from presto.utils.utils import input
         while True:
-            self.output_func("Rewrite '%s'? (y/n)" % value)
+            output("Rewrite '%s'? (y/n)" % value)
             yes_no = unicode(input())
             if yes_no in ('Y', 'y', 'yes', '\n'):
                 return True

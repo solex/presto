@@ -13,6 +13,7 @@ class PrestoCfg(object):
         if conf is None:
             from presto.models import config
             conf = config
+
         self.config = conf
 
     @need_providers
@@ -91,3 +92,22 @@ class PrestoCfg(object):
 
         self.config.save_to_file()
         print "The token is saved as '%s'." % (token.name)
+
+    @need_providers
+    def token_update(self, provider, app, name):
+        '''
+        
+        :param provider:
+        :param app:
+        :param name:
+        '''
+        token = Token(data=locals(), parent=self.config)
+        token.rewrite_name = True
+        if token.is_valid():
+            app = token.cleaned_data['app']
+            for i, t in enumerate(app.tokens):
+                if t.name == token.name:
+                    app.tokens[i] = token
+                    self.config.save_to_file()
+                    print "The token '%s' is updated." % (token.name)
+                    break

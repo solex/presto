@@ -91,6 +91,7 @@ Usage: presto-cfg.py provider list
        presto-cfg.py app list
        presto-cfg.py app add [<name> ] [--provider=<provider>|--public_key=<public_key>|--secret_key=<secret_key>]
        presto-cfg.py token add [<name>] [--provider=<provider>|--app=<app>]
+       presto-cfg.py token update [<name>] [--provider=<provider>|--app=<app>]
        presto-cfg.py -h | --help
        presto-cfg.py --version
 
@@ -130,6 +131,9 @@ if __name__ == '__main__':
 
         elif args['token'] and args['add']:
             prestocfg.token_add(args['--provider'], args['--app'], args['<name>'])
+
+        elif args['token'] and args['update']:
+            prestocfg.token_update(args['--provider'], args['--app'], args['<name>'])
 
     except PrestoCfgException, e:
          print "Error: %s " % e

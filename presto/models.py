@@ -12,6 +12,8 @@ PRESTO_CONFIG_FILE_NAME = os.path.join(os.getenv("HOME"), ".presto")
 
 
 class Token(Model):
+    rewrite_name = False
+
     provider = FormField(text='Choose the provider')
     app = FormField(text='Choose the application')
     name = CharField(
@@ -38,7 +40,7 @@ class Token(Model):
 
     def validate_name(self, name):
         app = self.cleaned_data['app']
-        if app.tokens:
+        if not self.rewrite_name and app.tokens:
             for token in app.tokens:
                 if token.name == name:
                     raise ValidationError(
