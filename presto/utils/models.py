@@ -76,6 +76,9 @@ class Model(object):
             if hasattr(self, 'validate_%s' % name):
                 kwargs['validation_func'] = getattr(self, 'validate_%s' % name)
 
+            if hasattr(self, 'get_text_%s' % name):
+                kwargs['text_func'] = getattr(self, 'get_text_%s' % name)
+
             if hasattr(self, 'get_extra_params_%s' % name):
                 kwargs.update(getattr(self, 'get_extra_params_%s' % name)())
 

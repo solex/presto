@@ -1,12 +1,89 @@
 import os
 import simplejson as json
+from oauthlib.oauth1.rfc5849 import SIGNATURE_TYPE_QUERY
+
 from presto.utils.models import Model
 from presto.utils.exceptions import ValidationError
 from presto.utils.fields import (MultipleObjectsField, UrlField, ChoiceField,
     DomainField, FormField, CharField)
 
 
-PRESTO_CONFIG_FILE_NAME = '/home/atmel/workspace/presto/presto/tests/test_presto.cfg'
+PRESTO_CONFIG_FILE_NAME = os.path.join(os.getenv("HOME"), ".presto")
+
+
+class Token(Model):
+    provider = FormField(text='Choose the provider')
+    app = FormField(text='Choose the application')
+    name = CharField(
+            text="Enter the name of the authorization ['default']",
+            default="default"
+    )
+    request_tokens = FormField(required=False)
+    token_key = CharField()
+    token_secret = CharField(required=False)
+
+    def validate_provider(self, provider):
+        return self.parent.get_provider_by_positional_num(provider)
+
+    def get_extra_params_provider(self):
+        return {'ext_func': lambda: self.parent.provider_list(), }
+
+    def validate_app(self, app):
+        provider = self.cleaned_data['provider']
+        return provider.get_app_by_id(app)
+
+    def get_extra_params_app(self):
+        provider = self.cleaned_data['provider']
+        return {'ext_func': lambda: provider.app_list(), }
+
+    def validate_name(self, name):
+        app = self.cleaned_data['app']
+        if app.tokens:
+            for token in app.tokens:
+                if token.name == name:
+                    raise ValidationError(
+                        "Token with name '%s' already exist on app '%s'." \
+                                                        % (name, app.name)
+                    )
+        return name
+
+    def validate_request_tokens(self, tokens):
+        from presto.oauth import get_request_token
+        app = self.cleaned_data['app']
+        provider = self.cleaned_data['provider']
+        return get_request_token(
+          app.public_key,
+          app.secret_key,
+          provider.request_token_url,
+          provider.request_token_method
+        )
+
+    def get_text_token_key(self):
+        from presto.oauth import build_authorize_url
+        provider = self.cleaned_data['provider']
+        request_tokens = self.cleaned_data['request_tokens']
+        url = build_authorize_url(provider.auth_url, request_tokens[0])
+        return "Paste this URL to your browser: '%s'\nEnter 'oauth_verifier' that you got" % url
+
+    def validate_token_key(self, verifier):
+        from presto.oauth import get_access_token
+        provider = self.cleaned_data['provider']
+        app = self.cleaned_data['app']
+        request_tokens = self.cleaned_data['request_tokens']
+        token, self.secret = get_access_token(
+             request_tokens[0], 
+             request_tokens[1],
+             provider.access_token_url, 
+             provider.access_token_method,
+             app.public_key,
+             app.secret_key,
+             verifier
+        )
+        return token
+
+    def validate_token_secret(self, secret):
+        # FIXME: Remove this hack. Save auth tokens in one field as list.
+        return self.secret
 
 
 class Application(Model):
@@ -16,6 +93,7 @@ class Application(Model):
     )
     public_key = CharField(text="Enter the public key")
     secret_key = CharField(text="Enter the secret key")
+    tokens = MultipleObjectsField(Token)
 
     def validate_provider(self, provider):
         '''
@@ -23,18 +101,7 @@ class Application(Model):
         
         :param provider: provider positional number.
         '''
-        if not provider.isdigit():
-            raise ValidationError("Provider argument must be integer.")
-
-        provider = int(provider)
-        cfg = self.parent
-        providers = cfg.providers
-
-        if provider <= len(providers) and provider > 0:
-            provider = providers[provider - 1]
-        else:
-            raise ValidationError("Provider must be from 1 to %d." % len(providers))
-        return provider
+        return self.parent.get_provider_by_positional_num(provider)
 
     def validate_name(self, name):
         provider = self.cleaned_data['provider']
@@ -44,12 +111,7 @@ class Application(Model):
         return name
 
     def get_extra_params_provider(self):
-        def show_provider_list():
-            for i, provider in enumerate(self.parent.providers):
-                print "[%d] %s" % (i + 1, provider.name)
-            print ""
-
-        return {'ext_func': show_provider_list, }
+        return {'ext_func': lambda: self.parent.provider_list(), }
 
 
 class Provider(Model):
@@ -88,6 +150,26 @@ class Provider(Model):
                         "Provider with name '%s' already exist." % name)
         return name
 
+    def app_list(self):
+        for i, app in enumerate(self.apps):
+            print "[%d] %s (%s)" % (i + 1, app.name, self.name)
+
+    def get_app_by_id(self, app):
+        if not app.isdigit():
+            raise ValidationError("App argument must be integer.")
+        app = int(app)
+
+        apps = self.apps
+        if not apps:
+            raise ValueError("Please add app.")
+
+        if app <= len(apps) and app > 0:
+            app = apps[app - 1]
+        else:
+            raise ValidationError("Provider must be from 1 to %d." % len(apps))
+
+        return app
+
 
 class Configuration(Model):
     providers = MultipleObjectsField(Provider)
@@ -118,6 +200,38 @@ class Configuration(Model):
         cfg_json = '\n'.join([l.rstrip() for l in  cfg_json.splitlines()])
         cfg_file.write(cfg_json)
         cfg_file.close()
+
+    def get_provider_by_positional_num(self, provider):
+        if not provider.isdigit():
+            raise ValidationError("Provider argument must be integer.")
+
+        provider = int(provider)
+        providers = self.providers
+
+        if provider <= len(providers) and provider > 0:
+            provider = providers[provider - 1]
+        else:
+            raise ValidationError("Provider must be from 1 to %d." % len(providers))
+        return provider
+
+    def filter(self, fieldname, **kwargs):
+        def apply_filters(item, **kwargs):
+            for fieldname, value in kwargs.iteritems():
+                if getattr(item, fieldname) != value:
+                    return False
+            return True
+
+        items = getattr(self, fieldname)
+        for item in items:
+            if apply_filters(item, **kwargs):
+                return provider
+        return None
+
+    def provider_list(self):
+        for i, provider in enumerate(self.providers):
+            print "[%d] %s" % (i + 1, provider.name)
+        print ""
+
 
 config = Configuration()
 config.load_from_file()

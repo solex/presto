@@ -5,3 +5,7 @@ class ValidationError(Exception):
 
 class AlreadyExist(ValidationError):
     pass
+
+
+class PrestoCfgException(Exception):
+    pass

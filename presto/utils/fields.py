@@ -8,17 +8,19 @@ class Field(object):
     DEFAULT_VALUE = None
 
     def __init__(self, value=None, required=True,
-                 text='Please input', default=''):
+                 text=None, default=''):
         self.value = value
         self.required = required
+
         self.text = text
         self.default = default
 
         self.creation_counter = Field.creation_counter
         Field.creation_counter += 1
+        self.validation_func = None
 
     def set_value(self, value, **kwargs):
-        self._val = value
+        self._val = unicode(value or '')
 
     def get_value(self):
         if not hasattr(self, '_val'):
@@ -27,43 +29,43 @@ class Field(object):
 
     value = property(get_value, set_value)
 
-    def clean(self, validation_func=None, **kwargs):
-        def validate_fn(value):
-            if not value and self.default:
-                value = self.default
-
-            if self.required and not value:
-                raise ValidationError('Field is required.')
-            if not validation_func is None:
-                value = validation_func(value)
-            return value
-
-        value = self.value
+    def clean(self, validation_func=None, 
+                    text_func=None, **kwargs):
+        self.validation_func = validation_func
         try:
-            return self.validate(value, validate_fn)
-        except ValidationError, AlreadyExist:
+            if self.required and not self.value:
+                raise ValidationError('Field is required.')
+
+            return self.validate(self.value)
+        except (ValidationError, AlreadyExist):
+            if not self.text and text_func:
+                self.text = text_func()
             return self.question(text=self.text,
                                   default=self.default,
-                                  validation_func=validate_fn,
                                   **kwargs)
 
-    def validate(self, value, validation_func=None):
-        if validation_func is None:
+    def validate(self, value):
+        if not value and self.default:
+            value = self.default
+
+        if self.required and not value:
+            raise ValidationError('Field is required.')
+
+        if self.validation_func is None:
             return value
 
-        return validation_func(value)
+        return self.validation_func(value)
 
     def question(self, text, default=None, 
-                 validation_func=None, 
                  ext_func=None, ext_param={}):
-        output(text + ':')
+        output("%s:" % text)
         if ext_func:
             ext_func(**ext_param)
 
         while True:
             value = unicode(input()).strip()
             try:
-                value = self.validate(value, validation_func)
+                value = self.validate(value)
             except AlreadyExist, e:
                 self.output_func(e.messages)
                 should_rewrite = self.yesno()
@@ -103,8 +105,8 @@ class ChoiceField(CharField):
         self.error_message = error_message or \
                 'Please specify valid choice: %s' % str(self.choices)
 
-    def validate(self, value, validation_func=None):
-        value = super(ChoiceField, self).validate(value, validation_func)
+    def validate(self, value):
+        value = super(ChoiceField, self).validate(value)
         if not value in self.choices:
             raise ValidationError(self.error_message)
         return value
