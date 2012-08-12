@@ -41,6 +41,11 @@ class Model(object):
         self.parent = parent
 
         self.fields = deepcopy(self.base_fields)
+        fields = dict(self.fields)
+        for name, item in self.data.iteritems():
+            if fields.has_key(name):
+                field = fields[name]
+                field.value = self.data.get(name, field.DEFAULT_VALUE)
 
     def __getattr__(self, name):
         fields = dict(self.fields)

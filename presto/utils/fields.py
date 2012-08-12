@@ -1,4 +1,4 @@
-from presto.utils.utils import output, input
+from presto.utils.utils import output
 from presto.utils.exceptions import ValidationError, AlreadyExist
 
 
@@ -20,11 +20,11 @@ class Field(object):
         self.validation_func = None
 
     def set_value(self, value, **kwargs):
-        self._val = unicode(value or '')
+        self._val = unicode(value or '').strip()
 
     def get_value(self):
         if not hasattr(self, '_val'):
-            self._val= None
+            self._val = self.DEFAULT_VALUE
         return self._val
 
     value = property(get_value, set_value)
@@ -58,6 +58,7 @@ class Field(object):
 
     def question(self, text, default=None, 
                  ext_func=None, ext_param={}):
+        from presto.utils.utils import input
         output("%s:" % text)
         if ext_func:
             ext_func(**ext_param)
@@ -79,9 +80,10 @@ class Field(object):
             return value
 
     def yesno(self):
+        from presto.utils.utils import input
         while True:
             self.output_func("Rewrite '%s'? (y/n)" % value)
-            yes_no = unicode(self.input_func())
+            yes_no = unicode(input())
             if yes_no in ('Y', 'y', 'yes', '\n'):
                 return True
             if yes_no in ('N', 'n', 'no'):
