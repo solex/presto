@@ -1,0 +1,42 @@
+==================
+Configuration file
+==================
+
+The configuration file creates automatically with providers:
+ * oDesk
+ * Tweeter
+
+File located at::
+
+    ~/presto.cfg
+
+Configuration saves in json format::
+
+    {
+    "providers": [
+        {
+            "access_token_method": "POST",
+            "access_token_url": "https://www.odesk.com/api/auth/v1/oauth/token/access",
+            "apps": [
+                {
+                    "name": "default",
+                    "public_key": "a5f4b5816316ebe937a9e65c1ca83818",
+                    "secret_key": "c27fe3645196e126",
+                    "tokens": [
+                        {
+                            "name": "default",
+                            "token_key": "1856cfc95249178fa964903096887f32",
+                            "token_secret": "5a5285f645be129f"
+                        }
+                    ]
+                }
+            ],
+            "auth_type": "OAuth1.0",
+            "auth_url": "https://www.odesk.com/services/api/auth",
+            "domain_name": "www.odesk.com",
+            "name": "odesk",
+            "request_token_method": "POST",
+            "request_token_url": "https://www.odesk.com/api/auth/v1/oauth/token/request"
+        }
+        ]
+    }
