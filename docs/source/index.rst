@@ -6,6 +6,8 @@
 pRESTo documentation!
 =====================
 
+pRESTo - command line Rest Api client
+
 
 Contents:
 
