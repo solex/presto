@@ -6,11 +6,11 @@ Getting started
 The basic concepts
 ==================
 
-Provider: Service provider (e.g. odesk.com, twitter.com)
+**Provider**: Service provider (e.g. odesk.com, twitter.com)
 
-App: Essentially, the set of keys. You can have multiple apps per provider.
+**App**: Essentially, the set of keys. You can have multiple apps per provider.
 
-Token: Access token. You can have multiple tokens per app.
+**Token**: Access token. You can have multiple tokens per app.
 
 
 .. _install:
